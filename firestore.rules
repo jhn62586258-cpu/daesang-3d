@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 상담 신청: 누구나 "새로 작성"만 가능, 읽기·수정·삭제는 불가.
+    // 접수 내역은 Firebase 콘솔(관리자 권한)에서 확인합니다.
+    match /inquiries/{id} {
+      allow read, update, delete: if false;
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          'receiptNo', 'name', 'phone', 'address', 'purpose', 'memo',
+          'privacyAgreed', 'simulation', 'source', 'createdAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.phone is string
+        && request.resource.data.phone.matches('^0[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}$')
+        && request.resource.data.address is string
+        && request.resource.data.address.size() <= 120
+        && request.resource.data.purpose is string
+        && request.resource.data.purpose.size() <= 40
+        && request.resource.data.memo is string
+        && request.resource.data.memo.size() <= 1000
+        && request.resource.data.privacyAgreed == true
+        && (request.resource.data.simulation == null || request.resource.data.simulation is map)
+        && request.resource.data.createdAt == request.time;
+    }
+
+    // 그 외 모든 경로 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
