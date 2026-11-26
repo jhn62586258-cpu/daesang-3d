@@ -1,5 +1,6 @@
-const MODEL = 'gemini-2.0-flash';
-const ENDPOINT = 'https://googleapis.com' + MODEL + ':generateContent';
+const MODEL = 'gemini-2.5-flash-lite';
+const HOST = 'generativelanguage.googleapis.com';
+const ENDPOINT = 'https://' + HOST + '/v1beta/models/' + MODEL + ':generateContent';
 
 const SYSTEM_PROMPT = `당신은 (주)대상건축사사무소 'AI 건축 3D 시뮬레이터'의 설계 보조 AI입니다. 고객의 한국어 요청을 읽고 현재 건물 스펙(JSON)을 수정합니다.
 규칙:
