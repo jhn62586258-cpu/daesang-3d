@@ -1,17 +1,11 @@
-/**
- * Vercel 서버리스 함수: POST /api/generate
- * 브라우저에서 받은 "직전 건물 스펙 + 새 요청 문장"을 Gemini(gemini-2.5-flash)에 보내고,
- * 수정된 건물 스펙 JSON을 돌려줍니다. API 키는 Vercel 환경변수 GEMINI_API_KEY 에만 둡니다.
- */
-
-const MODEL = 'gemini-2.5-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const MODEL = 'gemini-2.0-flash';
+const ENDPOINT = `https://googleapis.com{MODEL}:generateContent`;
 
 const SYSTEM_PROMPT = `당신은 (주)대상건축사사무소 'AI 건축 3D 시뮬레이터'의 설계 보조 AI입니다. 고객의 한국어 요청을 읽고 현재 건물 스펙(JSON)을 수정합니다.
 규칙:
 1) 요청에서 언급한 항목만 바꾸고, 언급하지 않은 항목은 현재 값을 그대로 유지합니다(이어서 수정하기).
 2) "~말고", "~제외하고", "~빼고", "~대신", "~없이"는 해당 항목을 배제한다는 뜻입니다.
-3) 색상은 정확한 Hex(#RRGGBB)로 지정합니다. 예: 청하늘색 #87CEEB, 아이보리 #F2EAD8, 네이비 #1F3A5F.
+3) 색상은 정확한 Hex(#RRGGBB)로 지정합니다. 예: 청하늘색 #87CEEB, 아이보리 #F2EAD8, 네이비 #1F3A5F, 어두운 노란색 #C49A2A.
 4) "3층에 통창으로"처럼 층수와 함께 말하면 floors를 그 값으로 바꿉니다. "1층은 카페"는 floors가 아니라 shop=true 입니다.
 5) 색만 말하고 재질을 말하지 않으면 material은 paint(도장)로 하되, 갈색·브라운은 wood, 블랙은 zinc가 자연스럽습니다.
 6) 건축과 무관한 요청에는 스펙을 바꾸지 말고 reply로 정중히 안내합니다.
@@ -27,7 +21,7 @@ const SYSTEM_PROMPT = `당신은 (주)대상건축사사무소 'AI 건축 3D 시
 const SPEC_KEYS = ['land', 'floors', 'material', 'wallColor', 'colorName', 'glass', 'roof', 'roofColor', 'terrace', 'shop', 'piloti', 'use'];
 const MATERIALS = ['paint', 'wood', 'brick', 'concrete', 'zinc', 'stone'];
 const ROOFS = ['flat', 'gable', 'hip', 'shed'];
-const HEX = /^#?[0-9a-f]{6}$/i;
+const HEX = /^#?[0-9a-f]{6}\$/i;
 
 function pickSpec(o) {
   const out = {};
@@ -41,7 +35,6 @@ function pickSpec(o) {
   return out;
 }
 
-// 모델이 돌려준 값을 한 번 더 검증합니다(프런트에서도 다시 검증).
 function cleanSpec(o) {
   const s = pickSpec(o), out = {};
   if (typeof s.land === 'number') out.land = Math.min(600, Math.max(20, s.land));
@@ -94,7 +87,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+        generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
       }),
     });
     if (!r.ok) {
