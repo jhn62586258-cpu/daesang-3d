@@ -1,4 +1,4 @@
-const MODEL = 'gemini-2.5-flash-lite';
+const MODEL = 'gemini-3-flash-preview';
 const HOST = 'generativelanguage.googleapis.com';
 const ENDPOINT = 'https://' + HOST + '/v1beta/models/' + MODEL + ':generateContent';
 
