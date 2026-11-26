@@ -1,5 +1,5 @@
 const MODEL = 'gemini-2.0-flash';
-const ENDPOINT = `https://googleapis.com{MODEL}:generateContent`;
+const ENDPOINT = 'https://googleapis.com' + MODEL + ':generateContent';
 
 const SYSTEM_PROMPT = `당신은 (주)대상건축사사무소 'AI 건축 3D 시뮬레이터'의 설계 보조 AI입니다. 고객의 한국어 요청을 읽고 현재 건물 스펙(JSON)을 수정합니다.
 규칙:
@@ -21,7 +21,17 @@ const SYSTEM_PROMPT = `당신은 (주)대상건축사사무소 'AI 건축 3D 시
 const SPEC_KEYS = ['land', 'floors', 'material', 'wallColor', 'colorName', 'glass', 'roof', 'roofColor', 'terrace', 'shop', 'piloti', 'use'];
 const MATERIALS = ['paint', 'wood', 'brick', 'concrete', 'zinc', 'stone'];
 const ROOFS = ['flat', 'gable', 'hip', 'shed'];
-const HEX = /^#?[0-9a-f]{6}\$/i;
+
+function isValidHex(str) {
+  if (typeof str !== 'string') return false;
+  const clean = str.trim().replace('#', '');
+  if (clean.length !== 6) return false;
+  for (let i = 0; i < 6; i++) {
+    const ch = clean[i].toLowerCase();
+    if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f'))) return false;
+  }
+  return true;
+}
 
 function pickSpec(o) {
   const out = {};
@@ -40,11 +50,11 @@ function cleanSpec(o) {
   if (typeof s.land === 'number') out.land = Math.min(600, Math.max(20, s.land));
   if (typeof s.floors === 'number') out.floors = Math.min(7, Math.max(1, Math.round(s.floors)));
   if (MATERIALS.includes(s.material)) out.material = s.material;
-  if (typeof s.wallColor === 'string' && HEX.test(s.wallColor.trim())) out.wallColor = '#' + s.wallColor.trim().replace('#', '').toUpperCase();
+  if (isValidHex(s.wallColor)) out.wallColor = '#' + s.wallColor.trim().replace('#', '').toUpperCase();
   if (typeof s.colorName === 'string') out.colorName = s.colorName.slice(0, 16);
   if (typeof s.glass === 'number') out.glass = Math.min(0.9, Math.max(0.1, s.glass));
   if (ROOFS.includes(s.roof)) out.roof = s.roof;
-  if (typeof s.roofColor === 'string' && HEX.test(s.roofColor.trim())) out.roofColor = '#' + s.roofColor.trim().replace('#', '').toUpperCase();
+  if (isValidHex(s.roofColor)) out.roofColor = '#' + s.roofColor.trim().replace('#', '').toUpperCase();
   for (const k of ['terrace', 'shop', 'piloti']) if (typeof s[k] === 'boolean') out[k] = s[k];
   if (typeof s.use === 'string' && s.use.trim()) out.use = s.use.trim().slice(0, 24);
   return out;
@@ -93,10 +103,12 @@ export default async function handler(req, res) {
     if (!r.ok) {
       const detail = await r.text().catch(() => '');
       console.error('Gemini error', r.status, detail.slice(0, 500));
-      return res.status(502).json({ error: 'upstream_error', status: r.status });
+      return res.status(502).json({ error: 'upstream_error', status: r.status, detail: detail.slice(0, 200) });
     }
     const data = await r.json();
-    const parts = data?.candidates?.[0]?.content?.parts ?? [];
+    const candidates = data && data.candidates ? data.candidates : [];
+    const first = candidates.length > 0 ? candidates[0] : null;
+    const parts = first && first.content && first.content.parts ? first.content.parts : [];
     const parsed = parseJSON(parts.map(p => p.text || '').join(''));
     if (!parsed || typeof parsed.spec !== 'object') return res.status(502).json({ error: 'bad_model_output' });
     const reply = typeof parsed.reply === 'string' ? parsed.reply.slice(0, 400) : '';
